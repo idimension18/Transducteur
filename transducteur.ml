@@ -41,6 +41,10 @@ module Transducteur =
 			in
 
 			aux debut (list_of_string mot) ""
+
+			(* Fonction de type : t->t->string->string 
+				Calculs la composition : (t2 o t1) entree *)
+			let compose t2 t1 entree = exec t2 (exec t1 entree)
 	end
 
 (*
