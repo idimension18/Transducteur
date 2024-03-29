@@ -1,9 +1,37 @@
 (* Boite à outils *)
+(* ------------------ *)
+
 let rec in_list elem = List.fold_left (fun acc x -> x=elem || acc) false 
 
 
 let list_of_string chaine = List.rev (String.fold_left (fun acc x -> x::acc) [] chaine)
+
+let string_of_char_list  = List.fold_left (fun acc x -> acc^(Char.escaped x)) ""
 	
+	
+let est_prefixe pref chaine = 
+	let rec aux p c = 
+		match (p, c) with
+		|  ([], _) -> true
+		| (_, []) -> false
+		| (t1::q1, t2::q2) ->
+			if t1 = t2 then (aux q1 q2)
+			else false 
+	in
+	aux (list_of_string pref) (list_of_string chaine)
+
+
+let enleve_prefixe pref chaine =
+		let rec aux p c = 
+		match (p, c) with
+		| ([], _) -> string_of_char_list c
+		| (_, []) -> ""
+		| (t1::q1, t2::q2) ->
+			if t1 = t2 then (aux q1 q2)
+			else string_of_char_list c
+	in
+	aux (list_of_string pref) (list_of_string chaine)
+
 
 (**
 	* Ce module permet la représentation de transducteur en OCaml
@@ -113,3 +141,20 @@ module Transducteur =
 		(* Calcule l'automate reconnaison le langage de sortie *)
 		let projection_droite = ()
 	end
+
+
+let mu_all q entree sortie =
+	match mot with
+	| [] -> 
+		List.fold_right 
+			(fun x acc -> let (q1, l, e, q2) = x in	 
+		transis [] 
+	| tete::queue -> 
+		List.fold_right
+			(fun x acc -> let (q1, l, e, q2) = x in
+				match (q1, l) with
+				| (a, _) when a <> q -> acc
+				| (a, b) when not (est_prefixe b entree) -> acc
+				| (a, b) -> (q2, enleve_prefixe l entree, sortie^e)::acc)
+			transis [] 
+			
