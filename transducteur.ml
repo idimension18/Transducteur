@@ -60,7 +60,15 @@ module Transducteur =
 						else acc) 
 					0 transi_list 
 
-		
+
+		(* fonction de type : int -> t -> t
+			On veut rajouter un etat, alors une opération de rennomage est nécéssaire *)
+		let re_indice base t = let Transducteur(s, f, transis) = t in
+			Transducteur(s + base, 
+				List.fold_right (fun x acc -> (x+base)::acc) f [],
+				List.fold_right (fun x acc -> let (q1,l,e,q2) = x in (q1+base,l,e,q2+base)::acc) transis [])
+
+			
 		(* Fonctions d'éxécution *)
 		(* -------------------------------- *)
 		
@@ -94,20 +102,14 @@ module Transducteur =
 		
 		(* Construction de nouveaux transducteurs *)
 		(* ---------------------------------------- *)
+
+		(* Renvoit l'union de t1 et t2 *)
+		let union t1 t2 = ()
 		
 		(* Concatenation de deux transducteur t1 et t2 *)
-		let concac t1 t2 =
-			let Transducteur(s1, fin1, transi_list1) = t1 in
+		let concac t1 t2 = 
 			
-			(* fonction de type : int -> t -> t
-				Afin de concaténer t2 il faut rennomer ces états à partir du max de t1 *)
-			let re_indice base t = let Transducteur(s, f, transis) = t in
-				Transducteur(s + base, 
-					List.fold_right (fun x acc -> (x+base)::acc) f [],
-					List.fold_right (fun x acc -> let (q1,l,e,q2) = x in (q1+base,l,e,q2+base)::acc) transis [])
-			in
-
-			(* Fonction de type : int list -> int -> transi_uplet list
+			(* Fonction de type : int list -> int -> transi_uplet list -> transi_uplet
 				On branche la fin de t1 sur le debut de t2 *)
 			let branchage fins1 s2 transis2 = 
 				List.fold_right
@@ -122,8 +124,25 @@ module Transducteur =
 			let Transducteur(s2, fin2, transis2) = re_indice ((q_max t1)+1) t2 in
 			Transducteur(s1, fin2, transis1 @ (branchage fin1 s2 transis2) )
 		
-		
-		let kleene t = ()
+
+		(* Passage de t à l'étoile de Kleene *)
+		let kleene t = 
+
+			(* Fonction de type : int list -> int -> transi_uplet list -> transi_uplet
+				On branche la fin de t sur son début *)
+			let branchage fins s transis =
+				List.fold_right
+					( fun x acc -> let (q1, l, e, q2) = x in
+						if q1 <> s then x::acc
+						else
+							(List.fold_right (fun fin acc_fins -> (fin, l, e, q2)::acc_fins) fins []) @ acc )
+					transis []
+			in
+			
+			let Transducteur(s, fins, transis) = t in
+			let new_etat = (q_max t)+1 in 
+			Transducteur(new_etat, new_etat::fins, (branchage (new_etat::fins) s transis))
+			
 
 		
 		(* Application divers *)
@@ -142,7 +161,7 @@ module Transducteur =
 		let projection_droite = ()
 	end
 
-
+(*
 let mu_all q entree sortie =
 	match mot with
 	| [] -> 
@@ -158,3 +177,4 @@ let mu_all q entree sortie =
 				| (a, b) -> (q2, enleve_prefixe l entree, sortie^e)::acc)
 			transis [] 
 			
+*)
