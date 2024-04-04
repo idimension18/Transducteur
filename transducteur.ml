@@ -4,9 +4,9 @@
 let rec in_list elem = List.fold_left (fun acc x -> x=elem || acc) false 
 
 
-let list_of_string chaine = List.rev (String.fold_left (fun acc x -> x::acc) [] chaine)
+let list_of_string chaine = List.rev (String.fold_left (fun acc x -> (Char.escaped x)::acc) [] chaine)
 
-let string_of_char_list  = List.fold_left (fun acc x -> acc^(Char.escaped x)) ""
+let string_of_char_list  = List.fold_left (fun acc x -> acc^x) ""
 	
 	
 let est_prefixe pref chaine = 
@@ -30,7 +30,7 @@ let enleve_prefixe pref chaine =
 			if t1 = t2 then (aux q1 q2)
 			else string_of_char_list c
 	in
-	aux (list_of_string pref) (list_of_string chaine)
+		aux (list_of_string pref) (list_of_string chaine)
 
 
 (**
@@ -77,6 +77,7 @@ module Transducteur =
 			ATTENTION : Elle ne marche que pour les transducteur deterministe *)
 		let exec_deterministe transduct mot =
 			let Transducteur(debut, fins, transi_uplets) = transduct in
+			
 			(* Fonction de type : int -> string -> int * string
 				Fonction de transition  mu : Q X A -> Q X A 
 				Prends un état d'entrée et une lettre 
@@ -92,41 +93,42 @@ module Transducteur =
 					aux transi_uplets
 			in 
 
+			
 			(* Fonction qui parcours l'entrée et tient à jours la sortie *)
 			let rec aux q entree sortie = 
 				match entree with 
 				| [] -> if in_list q fins then sortie else failwith "Mot non reconnu !"
-				| t::queue -> let (next_q, r) = mu q t in aux next_q queue (sortie^(Char.escaped r))
+				| t::queue -> let (next_q, r) = mu q t in aux next_q queue (sortie^r)
 			in
 
 			aux debut (list_of_string mot) ""
 
-		(* fonction de type : string -> string list
-			Renvoit toutes les réécriture possible de l'entrée sous forme d'une liste *)
-		let exec_deterministe transduct mot =
+
+		
+		(* Fonction de type : string -> string list
+			Renvoit toutes les réécriture possible de l'entrée sous forme d'une liste 
+			ATTENTION : Si le transducteur présente des boucles par epsilon transition, 
+			l'éxécution ne termine pas *)
+		let exec transduct mot =
 			let Transducteur(debut, fins, transi_uplets) = transduct in
 			
 			(* Fonction de type : int -> string -> string -> (int * string * string) list
 				Fonction de transition  mu : Q X A -> P(Q X A) 
 				Prends un état d'entrée, un entrée, et la réécriture courrante
 				puit renvoit les prochains état possibles *)
-			let mu_all q entree sortie =
-				match mot with
-				| "" -> 
-					List.fold_right 
-						(fun x acc -> let (q1, l, e, q2) = x in	 
-					transis [] 
-				| tete::queue -> 
-					List.fold_right
-						(fun x acc -> let (q1, l, e, q2) = x in
-							match (q1, l) with
-							| (a, _) when a <> q -> acc
-							| (a, b) when (est_prefixe b entree) -> (q2, enleve_prefixe l entree, sortie^e)::acc)
-							| _ -> acc
-						transis []
+			let mu_all etat = let (q, entree, sortie) = etat in
+				List.fold_left
+					(fun acc x -> let (q1, l, e, q2) = x in
+						match (q1, l) with
+						| (a, b) when a=q && (est_prefixe b entree) -> (q2, enleve_prefixe l entree, sortie^e)::acc
+						| _ -> acc)
+					[] transi_uplets
 			in
 
-			
+
+			(* Fonction de type : int -> bool 
+				Test s'il y a des epsilon transition depuis un état final 
+				C'est important pour savoir si l'éxécution termine ou pas *)
 			let est_final q =
 				List.fold_left 
 					(fun acc x -> 
@@ -134,21 +136,31 @@ module Transducteur =
 						| (q1, l, r, _) when q1 = q -> l <> "" && acc
 						| _ -> acc) 
 				true transi_uplets
-			
-			let filtre_terminaux etats  = 
-				List.fold_left 
-					(fun acc x -> let (etats_next, sorties) in
-						match x with
-						| (q1, entree, sortie) when in_list q1 fins && entree = "" -> 
-							if est_final q1 entree then (etats_next, sortie::sorties)
-							else (x::etats_next, sortie::sorties)
-						| _ -> (x::etats_next, sorties) )		
-					[] etats
 			in
 
+			
+			(* Fonction de type : (int * string * string) list -> (int * string * string) list * string list
+				Parmis les possiblité, on filtre les etats terminaux
+				On retourne aussi les écriture sous forme d'une liste *)
+			let filtre_terminaux etats  = 
+				List.fold_left 
+					(fun acc x -> let (etats_next, sorties) = acc in
+						match x with
+						| (q1, entree, sortie) when in_list q1 fins && entree = "" -> 
+							if est_final q1 then (etats_next, sortie::sorties)
+							else (x::etats_next, sortie::sorties)
+						| _ -> (x::etats_next, sorties) )		
+					([], []) etats
+			in
+
+			
 			(* Fonction qui parcours l'entrée et tient à jours la sortie *)
 			let rec aux etats sorties =
-				
+				let next = List.fold_left (fun acc x -> (mu_all x) @ acc) [] etats in
+				let (next_filtre, new_sorties) = (filtre_terminaux next) in
+				match next_filtre with
+				| [] -> sorties @ new_sorties
+				| _ -> aux next_filtre new_sorties
 			in
 
 			aux [(debut, mot, "")] []
@@ -202,30 +214,24 @@ module Transducteur =
 		(* -------------------- *)
 		
 		(* Fonction de type : t -> t -> string -> string 
-			Calculs la composition : (t2 o t1) entree *)
-		let compose t1 t2 entree = exec t2 (exec t1 entree)
-
-
-		(* Calcule l'automate reconnaissant le langage d'entrée *)
-		let projection_gauche = ()
+			Calculs la composition : (t2 o t1) entree 
+			dans le cas ou t1 et t2 sont deterministe *)
+		let compose_deterministe t1 t2 entree = exec_deterministe t2 (exec_deterministe t1 entree)
 
 		
-		(* Calcule l'automate reconnaison le langage de sortie *)
-		let projection_droite = ()
+		(* Fonction de type : t -> t -> string -> string list
+			Calcul la composition : (t2 o t1) entree *)
+		let compose t1 t2 entree = List.fold_left (fun acc x -> (exec t2 x) @ acc ) [] (exec t1 entree)
 	end
 
 
-let mu_all q entree sortie =
-	match mot with
-	| [] -> 
-		List.fold_right 
-			(fun x acc -> let (q1, l, e, q2) = x in	 
-		transis [] 
-	| tete::queue -> 
-		List.fold_right
-			(fun x acc -> let (q1, l, e, q2) = x in
-				match (q1, l) with
-				| (a, _) when a <> q -> acc
-				| (a, b) when (est_prefixe b entree) -> (q2, enleve_prefixe l entree, sortie^e)::acc)
-				| _ -> acc
-			transis [] 
+
+(* Example : *)
+(* ------------------*)
+
+(* Automate d'incrémentation binaire non deterministe 
+	Les bit de poids faible sont à droite *)
+let incr_bin = Transducteur.Transducteur(0, [1], 
+	[(0, "1", "1", 0); (0, "0", "0", 0); (0, "0", "1", 1); (1, "1", "0", 1)])
+
+
