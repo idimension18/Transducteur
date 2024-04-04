@@ -169,7 +169,15 @@ module Transducteur =
 		(* ---------------------------------------- *)
 
 		(* Renvoit l'union de t1 et t2 *)
-		let union t1 t2 = ()
+		let union t1 t2 = 
+			let new_t2 = re_indice ((q_max t1)+1) t2 in
+			let new_s = (q_max t2) +1 in
+			
+			let Transducteur(s1, fins1, transis1) = t1 in
+			let Transducteur(s2, fins2, transis2) = new_t2 in
+			
+			Transducteur(new_s, fins1 @ fins2, transis1 @ transis2 @ [(new_s, "", "", s1); (new_s, "", "", s2)])
+
 		
 		(* Concatenation de deux transducteur t1 et t2 *)
 		let concac t1 t2 = 
@@ -191,7 +199,7 @@ module Transducteur =
 		
 
 		(* Passage de t à l'étoile de Kleene *)
-		let kleene t = 
+		let kleene t =
 
 			(* Fonction de type : int list -> int -> transi_uplet list -> transi_uplet
 				On branche la fin de t sur son début *)
@@ -228,6 +236,20 @@ module Transducteur =
 
 (* Example : *)
 (* ------------------*)
+(* Demonstrations des opérations *)
+
+(* a -> z*)
+let t1 = Transducteur.Transducteur(0, [1], [(0, "a", "z", 1)])
+
+(* b -> h*)
+let t2 = Transducteur.Transducteur(0, [1], [(0, "b", "h", 1)])
+
+(* ab -> zh *)
+let t3 = Transducteur.concac t1 t2
+
+(*   (ab)* -> (zh)*  *)
+let t4 = Transducteur.kleene t3
+
 
 (* Automate d'incrémentation binaire non deterministe 
 	Les bit de poids faible sont à droite *)
@@ -235,3 +257,6 @@ let incr_bin = Transducteur.Transducteur(0, [1],
 	[(0, "1", "1", 0); (0, "0", "0", 0); (0, "0", "1", 1); (1, "1", "0", 1)])
 
 
+(* Demonstration de l'union *)
+(*   (ab)* -> (zh)*   et    incrementation binaire *)
+let t5 = Transducteur.union incr_bin t4
