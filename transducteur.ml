@@ -39,7 +39,7 @@ let enleve_prefixe pref chaine =
 *)
 module Transducteur =
 	struct
-		type transi_uplet = int * char * char * int
+		type transi_uplet = int * string * string * int
 		type t = Transducteur of int * int list * transi_uplet list
 
 		
@@ -73,10 +73,12 @@ module Transducteur =
 		(* -------------------------------- *)
 		
 		(* fonction de type : string -> string 
-			Réécrit le mot passé en paramêtre et renvoit la réécriture *)
-		let exec transduct mot =
+			Réécrit le mot passé en paramêtre et renvoit la réécriture 
+			ATTENTION : Elle ne marche que pour les transducteur deterministe *)
+		let exec_deterministe transduct mot =
 			let Transducteur(debut, fins, transi_uplets) = transduct in
-			(* Fonction de transition  mu : Q X A -> Q X A 
+			(* Fonction de type : int -> string -> int * string
+				Fonction de transition  mu : Q X A -> Q X A 
 				Prends un état d'entrée et une lettre 
 				Renvoit l'état suivant (si existe) et la réécriture *)
 			let mu q a = 
@@ -99,6 +101,57 @@ module Transducteur =
 
 			aux debut (list_of_string mot) ""
 
+		(* fonction de type : string -> string list
+			Renvoit toutes les réécriture possible de l'entrée sous forme d'une liste *)
+		let exec_deterministe transduct mot =
+			let Transducteur(debut, fins, transi_uplets) = transduct in
+			
+			(* Fonction de type : int -> string -> string -> (int * string * string) list
+				Fonction de transition  mu : Q X A -> P(Q X A) 
+				Prends un état d'entrée, un entrée, et la réécriture courrante
+				puit renvoit les prochains état possibles *)
+			let mu_all q entree sortie =
+				match mot with
+				| "" -> 
+					List.fold_right 
+						(fun x acc -> let (q1, l, e, q2) = x in	 
+					transis [] 
+				| tete::queue -> 
+					List.fold_right
+						(fun x acc -> let (q1, l, e, q2) = x in
+							match (q1, l) with
+							| (a, _) when a <> q -> acc
+							| (a, b) when (est_prefixe b entree) -> (q2, enleve_prefixe l entree, sortie^e)::acc)
+							| _ -> acc
+						transis []
+			in
+
+			
+			let est_final q =
+				List.fold_left 
+					(fun acc x -> 
+						match x with
+						| (q1, l, r, _) when q1 = q -> l <> "" && acc
+						| _ -> acc) 
+				true transi_uplets
+			
+			let filtre_terminaux etats  = 
+				List.fold_left 
+					(fun acc x -> let (etats_next, sorties) in
+						match x with
+						| (q1, entree, sortie) when in_list q1 fins && entree = "" -> 
+							if est_final q1 entree then (etats_next, sortie::sorties)
+							else (x::etats_next, sortie::sorties)
+						| _ -> (x::etats_next, sorties) )		
+					[] etats
+			in
+
+			(* Fonction qui parcours l'entrée et tient à jours la sortie *)
+			let rec aux etats sorties =
+				
+			in
+
+			aux [(debut, mot, "")] []
 		
 		(* Construction de nouveaux transducteurs *)
 		(* ---------------------------------------- *)
@@ -161,7 +214,7 @@ module Transducteur =
 		let projection_droite = ()
 	end
 
-(*
+
 let mu_all q entree sortie =
 	match mot with
 	| [] -> 
@@ -173,8 +226,6 @@ let mu_all q entree sortie =
 			(fun x acc -> let (q1, l, e, q2) = x in
 				match (q1, l) with
 				| (a, _) when a <> q -> acc
-				| (a, b) when not (est_prefixe b entree) -> acc
-				| (a, b) -> (q2, enleve_prefixe l entree, sortie^e)::acc)
+				| (a, b) when (est_prefixe b entree) -> (q2, enleve_prefixe l entree, sortie^e)::acc)
+				| _ -> acc
 			transis [] 
-			
-*)
